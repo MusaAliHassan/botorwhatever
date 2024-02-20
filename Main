@@ -1,0 +1,67 @@
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+import time
+import threading
+import matplotlib.pyplot as plt
+
+# Dictionary to store message counts for each group chat
+message_counts = {}
+
+# Lists to store x and y values for plotting
+x_values = []
+y_values = []
+
+def start_timer(update: Update, context: CallbackContext) -> None:
+    chat_id = update.message.chat_id
+    # Start a 60-second timer
+    threading.Timer(60, end_timer, args=[update]).start()
+
+def end_timer(update: Update) -> None:
+    chat_id = update.message.chat_id
+    current_time = time.time()
+    previous_time = message_counts.get(chat_id, 0)
+    # Calculate the time difference
+    time_difference = current_time - previous_time
+    x_values.append(time_difference)
+    y_values.append(message_counts.get(chat_id, 0))
+    # Print or store the time difference and message count for analysis
+    print(f"Time difference: {time_difference}, Message count: {message_counts.get(chat_id, 0)}")
+    message_counts[chat_id] = 0
+
+def message_handler(update: Update, context: CallbackContext) -> None:
+    chat_id = update.message.chat_id
+    # Increment message count for the chat
+    message_counts[chat_id] = time.time()
+    message_counts[chat_id] = message_counts.get(chat_id, 0) + 1
+    # Start or reset the timer
+    start_timer(update, context)
+
+def plot_graph() -> None:
+    plt.plot(x_values, y_values, marker='o', linestyle='-')
+    plt.xlabel('Time difference (seconds)')
+    plt.ylabel('Message count')
+    plt.title('Message count over time')
+    plt.grid(True)
+    plt.show()
+
+def main() -> None:
+    # Create the Updater and pass it your bot's token.
+    updater = Updater("6638396116:AAFXV5f92e23pWIAEl-Vh34E1lWRpGU3VHo")
+
+    # Get the dispatcher to register handlers
+    dispatcher = updater.dispatcher
+
+    # Listen for messages and increment message count
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, message_handler))
+
+    # Start the Bot
+    updater.start_polling()
+
+    # Schedule plotting the graph at the end of the day
+    threading.Timer(86400, plot_graph).start()  # 86400 seconds = 24 hours
+
+    # Run the bot until you press Ctrl-C
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
